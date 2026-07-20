@@ -277,7 +277,12 @@ async def create_invite_link(shared_category_id: int, duration_hours: int = 24) 
 # ── 启动 ──────────────────────────────────────────────
 
 def main():
-    mcp.run()
+    """启动 MCP Server。默认 STDIO（本地 Agent），也可用 streamable-http（Docker/Glama 测试）"""
+    import sys
+    transport = "stdio"
+    if "--http" in sys.argv:
+        transport = "streamable-http"
+    mcp.run(transport=transport)
 
 
 if __name__ == "__main__":
