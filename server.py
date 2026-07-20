@@ -26,12 +26,19 @@ def _auth_headers() -> dict:
 mcp = FastMCP(
     "ai-footprints",
     instructions="""
-你是 AI 足迹的助手，帮用户管理收藏的网页、文章、视频等。
+你是 AI 足迹的助手，帮用户管理收藏的网页、文章、视频。
 
-工作流程：
-1. 首次对话：如果用户没有 Token，调用 agent_register() 自动注册
-2. 后续操作：搜/加/改/分类/共享，Token 自动携带
-3. Token 获取：https://ai.ocean94.com → 个人中心 → 接入Agent
+首次对话流程：
+1. 问用户有没有账号
+2. 没有 → agent_register() 创建（⚠️ 只调一次！会创建新账号）
+3. 有 → 确认 FOOTPRINTS_TOKEN 已配置
+4. my_info() 验证连接
+
+日常操作：
+- 操作足迹前先 list_categories() + list_tags() 了解结构
+- update_footprint 的 category_ids 是替换不是追加，先 get_footprint 再拼 ID
+- subscribe 模式共享分类只读，写入会 403
+- 频繁调用可能被限流（429），等几秒重试
 """,
 )
 
@@ -50,10 +57,11 @@ async def _api(method: str, path: str, **kwargs) -> dict:
 
 @mcp.tool()
 async def agent_register() -> dict:
-    """帮用户创建 AI 足迹账号。无需 Token，每次调用创建新账号。
+    """帮用户创建 AI 足迹账号。无参数，无需 Token。
 
-    返回的 token 自动记忆，后续操作直接可用。
-    当用户说"我没有账号"或"帮我注册"时调用。
+    每次调用创建全新账号，返回 token 自动记忆。
+    ⚠️ 不要重复调用！如果用户已有账号但忘了给 Token，调此工具会创建空白新账号。
+    使用前先问用户"有 AI 足迹账号吗？"
     """
     global TOKEN
     result = await _api("POST", "/api/agent/register")
@@ -66,7 +74,9 @@ async def agent_register() -> dict:
 
 @mcp.tool()
 async def my_info() -> dict:
-    """查看当前 Token 对应的用户信息。确认身份、验证 Token 有效性。"""
+    """首次对话先调此工具，确认 Token 有效且连接正常。
+    返回用户名、会员状态。也可用于用户问"我是谁"时。
+    """
     return await _api("GET", "/api/auth/me")
 
 
@@ -118,11 +128,14 @@ async def add_footprint(
     url: str, title: str = "", description: str = "",
     category_ids: str = "", tags: str = "",
 ) -> dict:
-    """用户说"收藏这个链接"时用。标题留空自动提取。
+    """添加一条收藏。用户说"收藏这个链接"时用。
+
+    调用前先 list_categories() 和 list_tags() 了解已有分类/标签，
+    避免创建重复分类。标题留空自动从网页提取。
 
     Args:
-        url: 网页链接
-        title: 自定义标题
+        url: 网页链接（必填）
+        title: 自定义标题（留空自动提取）
         description: 摘要
         category_ids: 分类 ID，逗号分隔如 "1,3"
         tags: 标签，逗号分隔如 "AI,教程"
@@ -146,10 +159,14 @@ async def update_footprint(
     footprint_id: int, title: str = "", description: str = "",
     category_ids: str = "", tags: str = "",
 ) -> dict:
-    """用户说"改标题/移分类"时用。category_ids 替换整个列表。
+    """更新足迹。用户说"改标题/移分类"时用。
+
+    ⚠️ category_ids 是替换整个列表，不是追加！
+    正确做法：先 get_footprint(id) 拿现有分类 → 拼上新 ID → 再传 category_ids。
+    例：现有 [3,5]，要加 7 → category_ids="3,5,7"（不是 "7"）
 
     Args:
-        footprint_id: 足迹 ID
+        footprint_id: 足迹 ID（从搜索结果取）
         title/description/category_ids/tags: 留空不改
     """
     body = {}
@@ -170,7 +187,9 @@ async def update_footprint(
 
 @mcp.tool()
 async def list_categories() -> dict:
-    """列出用户的所有分类。操作足迹前先看一眼。"""
+    """列出所有分类（id + name）。操作足迹前必须先调此工具，获取可选分类 ID 列表。
+    返回结果中 id 字段用于 add_footprint / update_footprint 的 category_ids 参数。
+    """
     return await _api("GET", "/api/categories")
 
 
@@ -223,7 +242,10 @@ async def list_shared_categories() -> dict:
 async def create_shared_category(
     name: str, mode: str = "cocreate", description: str = "",
 ) -> dict:
-    """创建共享分类。"cocreate"=多人编辑，"subscribe"=只读。
+    """创建共享分类。"cocreate"=多人可编辑，"subscribe"=只读分享。
+
+    ⚠️ subscribe 模式下任何人（包括创建者）都无法往里面写入，调用 add_footprint 会 403。
+    如果用户想协作编辑，用 mode="cocreate"。
     """
     body = {"name": name, "mode": mode}
     if description:
