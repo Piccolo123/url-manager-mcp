@@ -116,8 +116,8 @@ Agent 只需把上游 MCP 产出的 URL + 标题作为参数传给 `add_footprin
 ## 部署（给人类看）
 
 ```bash
-git clone https://github.com/Piccolo123/url-manager.git
-cd url-manager && pip install -r requirements.txt
+git clone https://github.com/Piccolo123/url-manager-mcp.git
+cd url-manager-mcp && pip install -r requirements.txt
 
 # Cherry Studio / Claude Desktop 配置：
 {
