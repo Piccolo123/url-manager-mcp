@@ -86,7 +86,19 @@ update_footprint(42, category_ids="3,5,7")
 2. create_invite_link(shared_category_id=上一步返回的 ID)
 3. 返回邀请码给用户 → 用户发给同事
 4. 同事的 Agent 用 join_shared_category(invite_code) 加入
+ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/ai-footprints-mcp)
+
+## 搭配热门 MCP 使用
+
+AI 足迹擅长**收藏和管理**，与擅长**发现和抓取**的 MCP 天然互补：
+
 ```
+Fetch MCP 抓取网页  →  add_footprint()  →  自动归类，永久可搜
+Firecrawl 爬取内容 →  add_footprint()  →  分类整理，卡片式浏览
+Brave Search 搜索  →  add_footprint()  →  搜索结果一键收藏
+```
+
+Agent 只需把上游 MCP 产出的 URL + 标题作为参数传给 `add_footprint` 即可。
 
 ## 部署（给人类看）
 
