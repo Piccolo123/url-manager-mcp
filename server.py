@@ -308,12 +308,25 @@ async def create_invite_link(shared_category_id: int, duration_hours: int = 24) 
                       json={"duration_hours": duration_hours})
 
 
+# ── Agent 注册（Agent 先行） ──────────────────────────
+
+@mcp.tool()
+async def agent_register() -> dict:
+    """帮用户创建一个 AI 足迹账号。无需 Token，每次调用创建新账号。
+
+    使用场景：当用户说"我没有 AI 足迹账号"或"帮我注册一个"时使用。
+    注册成功后返回的 token 需要设置为 FOOTPRINTS_TOKEN 环境变量，
+    后续所有操作都通过这个 token 代表该用户。
+    """
+    return await _api("POST", "/api/agent/register")
+
+
 # ── 用户信息 ──────────────────────────────────────────
 
 @mcp.tool()
 async def my_info() -> dict:
     """查看当前 Agent Token 对应的用户信息（用户名、会员状态等）。
-    适合在首次对话时调用，确认身份。"""
+    适合在首次对话时调用，确认身份，或确认 token 有效。"""
     if err := _require_token():
         return {"error": err}
     return await _api("GET", "/api/auth/me")
