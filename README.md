@@ -31,16 +31,15 @@
 ### 分类与标签
 | 工具 | 什么时候用 | 注意事项 |
 |------|-----------|---------|
-| `list_categories()` | 操作足迹前先调，了解可选分类 | 返回 ID 和名称，ID 用于后续操作 |
+| `list_categories()` | 操作足迹前先调，了解可选分类 | 返回个人+共享所有分类。mode=null 个人，mode="cocreate"/"subscribe" 共享 |
 | `create_category(name)` | 用户说"建个 XX 分类" | 先 `list_categories()` 确认不重名 |
 | `list_tags()` | 打标签前先调，避免重复 | 返回已有标签列表 |
 
 ### 共享分类
 | 工具 | 什么时候用 |
 |------|-----------|
-| `list_shared_categories()` | 用户想看参与的共享分类 |
 | `create_shared_category(name, mode)` | 用户说"建共享收藏夹"。mode="cocreate" 多人编辑 / "subscribe" 只读 |
-| `create_invite_link(shared_category_id)` | 用户说"把邀请链接发给 XX" |
+| `create_invite_link(shared_category_id)` | 用户说"把邀请链接发给 XX"。id 从 `list_categories()` 的共享分类取 |
 | `join_shared_category(invite_code)` | 用户说"我有个邀请码" |
 
 ## ⚠️ 关键陷阱
