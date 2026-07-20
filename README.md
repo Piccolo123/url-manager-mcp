@@ -41,6 +41,19 @@
 | `create_shared_category(name, mode)` | 用户说"建共享收藏夹"。mode="cocreate" 多人编辑 / "subscribe" 只读 |
 | `create_invite_link(shared_category_id)` | 用户说"把邀请链接发给 XX"。id 从 `list_categories()` 的共享分类取 |
 | `join_shared_category(invite_code)` | 用户说"我有个邀请码" |
+| `add_to_shared_category(sc_id, footprint_id)` | 把已有足迹加入共享分类 |
+| `remove_from_shared_category(sc_id, footprint_id)` | 把足迹从共享分类移出 |
+| `copy_footprint(footprint_id, category_ids)` | 从共享分类复制到自己的个人分类 |
+
+### 批量操作
+| 工具 | 什么时候用 |
+|------|-----------|
+| `batch_update_footprints(updates)` | 一次性改多条足迹的分类/标题/标签（最多 50 条） |
+
+### 交付给用户
+| 工具 | 什么时候用 |
+|------|-----------|
+| `agent_magic_link()` | 🔑 整理完后生成链接发给用户，用户打开即见卡片界面。Agent 先行交付闭环核心
 
 ## ⚠️ 关键陷阱
 

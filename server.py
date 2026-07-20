@@ -39,6 +39,12 @@ mcp = FastMCP(
 - update_footprint 的 category_ids 是替换不是追加，先 get_footprint 再拼 ID
 - subscribe 模式共享分类只读，写入会 403
 - 频繁调用可能被限流（429），等几秒重试
+- 批量整理用 batch_update_footprints，一次最多 50 条
+
+交付闭环（Agent 先行核心）：
+- 整理完调用 agent_magic_link() 生成链接
+- 把链接发给用户："整理好了，点这里查看 → [链接]"
+- 用户打开就是卡片式界面，30 天有效
 """,
 )
 
@@ -272,6 +278,78 @@ async def create_invite_link(shared_category_id: int, duration_hours: int = 24) 
     """
     return await _api("POST", f"/api/v1/agent/shared-categories/{shared_category_id}/invite-link",
                       json={"duration_hours": duration_hours})
+
+
+@mcp.tool()
+async def add_to_shared_category(shared_category_id: int, footprint_id: int) -> dict:
+    """将一条已有足迹加入共享分类。该足迹必须是你创建的。
+
+    Args:
+        shared_category_id: 共享分类 ID
+        footprint_id: 足迹 ID
+    """
+    return await _api("POST", f"/api/v1/agent/shared-categories/{shared_category_id}/collections",
+                      json={"collection_id": footprint_id})
+
+
+@mcp.tool()
+async def remove_from_shared_category(shared_category_id: int, footprint_id: int) -> dict:
+    """将足迹从共享分类移出（不删除足迹本身）。
+
+    Args:
+        shared_category_id: 共享分类 ID
+        footprint_id: 足迹 ID
+    """
+    return await _api("DELETE",
+                      f"/api/v1/agent/shared-categories/{shared_category_id}/collections/{footprint_id}")
+
+
+@mcp.tool()
+async def copy_footprint(footprint_id: int, category_ids: str) -> dict:
+    """从共享分类复制一条足迹到自己的个人分类。
+
+    Args:
+        footprint_id: 要复制的足迹 ID
+        category_ids: 目标分类 ID，逗号分隔，如 "1,3"
+    """
+    cids = [int(x.strip()) for x in category_ids.split(",") if x.strip()]
+    return await _api("POST", f"/api/v1/agent/collections/{footprint_id}/copy",
+                      json={"category_ids": cids})
+
+
+@mcp.tool()
+async def batch_update_footprints(updates: str) -> dict:
+    """批量更新足迹，一次最多 50 条。用于批量整理场景。
+
+    Args:
+        updates: JSON 字符串，格式 '[{"id":"uuid","title":"新标题","category_ids":"1,3"},...]'
+                每个对象可含 title/description/category_ids/tag_names，id 必填
+    """
+    import json
+    try:
+        items = json.loads(updates)
+    except json.JSONDecodeError:
+        return {"error": "updates 必须是有效 JSON 数组"}
+    if len(items) > 50:
+        return {"error": "最多 50 条"}
+    # 转换 category_ids 和 tag_names
+    for item in items:
+        if "category_ids" in item and isinstance(item["category_ids"], str):
+            item["category_ids"] = [int(x.strip()) for x in item["category_ids"].split(",") if x.strip()]
+        if "tag_names" in item and isinstance(item["tag_names"], str):
+            item["tag_names"] = [x.strip() for x in item["tag_names"].split(",") if x.strip()]
+    return await _api("PUT", "/api/v1/agent/collections/batch", json={"updates": items})
+
+
+@mcp.tool()
+async def agent_magic_link() -> dict:
+    """生成魔法链接，发给用户即可在浏览器中打开整理好的收藏界面。
+    
+    这是 Agent 先行的交付闭环核心——Agent 帮用户整理完后，
+    调用此工具生成链接发给用户，用户点击即可看到卡片式界面。
+    链接 30 天有效，可重复使用。
+    """
+    return await _api("POST", "/api/v1/agent/magic-link")
 
 
 # ── 启动 ──────────────────────────────────────────────
