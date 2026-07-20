@@ -256,7 +256,7 @@ async def create_invite_link(shared_category_id: int, duration_hours: int = 24) 
 # ── 启动 ──────────────────────────────────────────────
 
 def main():
-    mcp.run(transport="streamable-http")
+    mcp.run()  # 默认 STDIO，适配本地 Agent（Cherry Studio / Claude Desktop / Cursor）
 
 
 if __name__ == "__main__":
