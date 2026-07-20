@@ -118,8 +118,11 @@ Agent 只需把上游 MCP 产出的 URL + 标题作为参数传给 `add_footprin
 ```bash
 git clone https://github.com/Piccolo123/url-manager-mcp.git
 cd url-manager-mcp && pip install -r requirements.txt
+```
 
-# Cherry Studio / Claude Desktop 配置：
+Cherry Studio / Claude Desktop 配置：
+
+```json
 {
   "mcpServers": {
     "url-manager": {
@@ -128,6 +131,7 @@ cd url-manager-mcp && pip install -r requirements.txt
     }
   }
 }
+```
 # 已有账号则加 "env": {"FOOTPRINTS_TOKEN": "FA_xxx"}
 ```
 
