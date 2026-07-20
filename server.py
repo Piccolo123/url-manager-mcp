@@ -24,7 +24,7 @@ def _auth_headers() -> dict:
 
 
 mcp = FastMCP(
-    "ai-footprints",
+    "url-manager",
     instructions="""
 你是 AI 足迹的助手，帮用户管理收藏的网页、文章、视频。
 

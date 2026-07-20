@@ -99,7 +99,7 @@ update_footprint(42, category_ids="3,5,7")
 2. create_invite_link(shared_category_id=上一步返回的 ID)
 3. 返回邀请码给用户 → 用户发给同事
 4. 同事的 Agent 用 join_shared_category(invite_code) 加入
-ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/ai-footprints-mcp)
+ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)
 
 ## 搭配热门 MCP 使用
 
@@ -116,13 +116,13 @@ Agent 只需把上游 MCP 产出的 URL + 标题作为参数传给 `add_footprin
 ## 部署（给人类看）
 
 ```bash
-git clone https://github.com/Piccolo123/ai-footprints-mcp.git
-cd ai-footprints-mcp && pip install -r requirements.txt
+git clone https://github.com/Piccolo123/url-manager.git
+cd url-manager && pip install -r requirements.txt
 
 # Cherry Studio / Claude Desktop 配置：
 {
   "mcpServers": {
-    "ai-footprints": {
+    "url-manager": {
       "command": "python",
       "args": ["path/to/server.py"]
     }
@@ -131,4 +131,4 @@ cd ai-footprints-mcp && pip install -r requirements.txt
 # 已有账号则加 "env": {"FOOTPRINTS_TOKEN": "FA_xxx"}
 ```
 
-ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/ai-footprints-mcp)
+ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)
