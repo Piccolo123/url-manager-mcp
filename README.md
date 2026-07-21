@@ -5,6 +5,8 @@
 
 Agent-first MCP server for managing users' web bookmarks. Agents auto-register, collect, categorize, tag, search, and share URLs — zero manual setup for end users.
 
+> 📖 **For detailed workflows, patterns, and behavioral guidelines, see the [URL Manager Skill](https://github.com/Piccolo123/url-manager/blob/main/SKILL.md).**
+
 ## First Conversation (Every Time)
 
 1. If no token provided, ask "Do you have a URL Manager account?"

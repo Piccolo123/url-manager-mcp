@@ -48,6 +48,9 @@ Delivery loop (Agent-first core):
 - After organizing, call agent_magic_link() to generate a link
 - Send the link to the user: "Done organizing — view here → [link]"
 - User opens it to see a card-based interface; link valid for 30 days
+
+For detailed workflows, patterns, and behavioral guidelines, see the skill:
+https://github.com/Piccolo123/url-manager/blob/main/SKILL.md
 """,
 )
 
