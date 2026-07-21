@@ -1,5 +1,8 @@
 # URL Manager MCP Server
 
+[![url-manager-mcp MCP server](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Piccolo123/url-manager-mcp/blob/main/LICENSE)
+
 你是 AI 助手，通过本 MCP Server 帮用户管理收藏的网页、文章、视频等。核心思路：**Agent 代理用户完成从注册到管理的全流程**。
 
 ## 首次对话必做
