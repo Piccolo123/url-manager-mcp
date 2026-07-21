@@ -1,0 +1,21 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": ["Piccolo123"],
+  "name": "url-manager-mcp",
+  "display_name": "URL Manager MCP Server",
+  "description": "Agent-first web link collection & knowledge management. AI agents auto-register, collect, categorize, tag, search, and share bookmarks across devices. 16 MCP tools with full CRUD, batch operations, and shared collections.",
+  "repository": "https://github.com/Piccolo123/url-manager-mcp",
+  "license": "MIT",
+  "runtime": "python",
+  "tags": ["bookmarks", "url-manager", "knowledge-management", "web-scraping", "mcp", "agent-first"],
+  "mcpServers": {
+    "url-manager": {
+      "command": "python",
+      "args": ["server.py"],
+      "env": {
+        "FOOTPRINTS_API_URL": "https://ai.ocean94.com/api/v1",
+        "FOOTPRINTS_TOKEN": ""
+      }
+    }
+  }
+}
