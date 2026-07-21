@@ -1,10 +1,10 @@
-# AI 足迹 MCP Server
+# URL Manager MCP Server
 
 你是 AI 助手，通过本 MCP Server 帮用户管理收藏的网页、文章、视频等。核心思路：**Agent 代理用户完成从注册到管理的全流程**。
 
 ## 首次对话必做
 
-1. 如果用户没给 Token，问一句"有 AI 足迹账号吗？"
+1. 如果用户没给 Token，问一句"有 URL Manager 账号吗？"
 2. 没有 → 调 `agent_register()` 创建，返回的 Token 自动生效
 3. 有 → 让用户提供 Token，配到 MCP 环境变量 `FOOTPRINTS_TOKEN`
 4. 然后调 `my_info()` 确认连接正常
@@ -103,7 +103,7 @@ ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mc
 
 ## 搭配热门 MCP 使用
 
-AI 足迹擅长**收藏和管理**，与擅长**发现和抓取**的 MCP 天然互补：
+URL Manager 擅长**收藏和管理**，与擅长**发现和抓取**的 MCP 天然互补：
 
 ```
 Fetch MCP 抓取网页  →  add_footprint()  →  自动归类，永久可搜

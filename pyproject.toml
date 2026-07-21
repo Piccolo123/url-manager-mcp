@@ -1,7 +1,7 @@
 [project]
-name = "ai-footprints-mcp"
+name = "url-manager-mcp"
 version = "1.0.0"
-description = "AI 足迹 MCP Server — 让 AI Agent 管理用户的数字足迹"
+description = "URL Manager MCP Server — Agent-first web link collection & knowledge management"
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.0.0",
@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-ai-footprints-mcp = "server:main"
+url-manager-mcp = "server:main"
 
 [build-system]
 requires = ["hatchling"]
