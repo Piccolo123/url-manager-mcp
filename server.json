@@ -1,0 +1,38 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Piccolo123/url-manager-mcp",
+  "description": "Agent-first URL collection & knowledge management MCP server. AI agents auto-register, collect, categorize, tag, search, and share web bookmarks across devices. 16 tools with full CRUD, batch operations, collaborative shared categories, and magic-link delivery.",
+  "repository": {
+    "url": "https://github.com/Piccolo123/url-manager-mcp",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "url-manager-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "command": "python",
+      "args": ["server.py"],
+      "environmentVariables": [
+        {
+          "description": "URL Manager API endpoint",
+          "isRequired": false,
+          "format": "string",
+          "name": "FOOTPRINTS_ENDPOINT",
+          "default": "https://ai.ocean94.com"
+        },
+        {
+          "description": "URL Manager API token. Leave empty for agent-first auto-registration.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "FOOTPRINTS_TOKEN"
+        }
+      ]
+    }
+  ]
+}
