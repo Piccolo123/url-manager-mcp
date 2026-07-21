@@ -3,127 +3,127 @@
 [![url-manager-mcp MCP server](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Piccolo123/url-manager-mcp/blob/main/LICENSE)
 
-你是 AI 助手，通过本 MCP Server 帮用户管理收藏的网页、文章、视频等。核心思路：**Agent 代理用户完成从注册到管理的全流程**。
+Agent-first MCP server for managing users' web bookmarks. Agents auto-register, collect, categorize, tag, search, and share URLs — zero manual setup for end users.
 
-## 首次对话必做
+## First Conversation (Every Time)
 
-1. 如果用户没给 Token，问一句"有 URL Manager 账号吗？"
-2. 没有 → 调 `agent_register()` 创建，返回的 Token 自动生效
-3. 有 → 让用户提供 Token，配到 MCP 环境变量 `FOOTPRINTS_TOKEN`
-4. 然后调 `my_info()` 确认连接正常
+1. If no token provided, ask "Do you have a URL Manager account?"
+2. No → Call `agent_register()` to create one (token auto-applied)
+3. Yes → Have the user provide their token, set `FOOTPRINTS_TOKEN` env var
+4. Call `my_info()` to confirm the connection works
 
-> ⚠️ `agent_register()` 每次调用都创建新账号，**不要重复调用**。如果用户已有 Token 但忘了说，你会创建出第二个空白账号。
+> ⚠️ `agent_register()` creates a NEW account every time. **Never call it twice** — if the user forgot they already have an account, you'll create a duplicate empty one.
 
-## 工具速查
+## Tool Reference
 
-### 注册与身份
-| 工具 | 什么时候用 |
-|------|-----------|
-| `agent_register()` | 用户没有账号，需创建。无参数，返回 token 自动记忆 |
-| `my_info()` | 首次对话确认连接，或用户问"我是谁" |
+### Registration & Identity
+| Tool | When to Use |
+|------|-------------|
+| `agent_register()` | User has no account. No params, returns token auto-memorized |
+| `my_info()` | First-conversation connection check, or user asks "Who am I?" |
 
-### 足迹操作
-| 工具 | 什么时候用 | 关键参数来源 |
-|------|-----------|-------------|
-| `search_footprints(query)` | 用户说"找 XX 的收藏" | query 从用户输入提取 |
-| `list_footprints(category_id)` | 用户说"看看收藏" | category_id 从 `list_categories()` 结果取 |
-| `get_footprint(footprint_id)` | 看某条完整详情 | footprint_id 从搜索或列表结果取 |
-| `add_footprint(url, ...)` | 用户说"收藏这个" | url 必填；category_ids/tags 先从 `list_categories()` / `list_tags()` 查 |
-| `update_footprint(id, ...)` | 用户说"改标题/移分类" | id 从搜索或列表结果取 |
+### Bookmarks
+| Tool | When to Use | Key Param Source |
+|------|-------------|------------------|
+| `search_footprints(query)` | User says "find that article about..." | query from user input |
+| `list_footprints(category_id)` | User says "show me my bookmarks" | category_id from `list_categories()` result |
+| `get_footprint(footprint_id)` | View full details of one bookmark | footprint_id from search or list results |
+| `add_footprint(url, ...)` | User says "save/bookmark this" | url required; category_ids/tags from `list_categories()` / `list_tags()` |
+| `update_footprint(id, ...)` | User says "change title/move to another category" | id from search or list results |
 
-### 分类与标签
-| 工具 | 什么时候用 | 注意事项 |
-|------|-----------|---------|
-| `list_categories()` | 操作足迹前先调，了解可选分类 | 返回个人+共享所有分类。mode=null 个人，mode="cocreate"/"subscribe" 共享 |
-| `create_category(name)` | 用户说"建个 XX 分类" | 先 `list_categories()` 确认不重名 |
-| `list_tags()` | 打标签前先调，避免重复 | 返回已有标签列表 |
+### Categories & Tags
+| Tool | When to Use | Notes |
+|------|-------------|-------|
+| `list_categories()` | ALWAYS call before operating on bookmarks — discover existing structure | Returns personal + shared categories. mode=null → personal, mode="cocreate"/"subscribe" → shared |
+| `create_category(name)` | User says "create a new category" | Call `list_categories()` first to avoid duplicates |
+| `list_tags()` | Before tagging — avoid duplicate tags | Returns existing tags |
 
-### 共享分类
-| 工具 | 什么时候用 |
-|------|-----------|
-| `create_shared_category(name, mode)` | 用户说"建共享收藏夹"。mode="cocreate" 多人编辑 / "subscribe" 只读 |
-| `create_invite_link(shared_category_id)` | 用户说"把邀请链接发给 XX"。id 从 `list_categories()` 的共享分类取 |
-| `join_shared_category(invite_code)` | 用户说"我有个邀请码" |
-| `add_to_shared_category(sc_id, footprint_id)` | 把已有足迹加入共享分类 |
-| `remove_from_shared_category(sc_id, footprint_id)` | 把足迹从共享分类移出 |
-| `copy_footprint(footprint_id, category_ids)` | 从共享分类复制到自己的个人分类 |
+### Shared Categories
+| Tool | When to Use |
+|------|-------------|
+| `create_shared_category(name, mode)` | User says "create a shared collection". mode="cocreate" (editable) / "subscribe" (read-only) |
+| `create_invite_link(shared_category_id)` | User says "send the invite link to..." — id from `list_categories()` shared entries |
+| `join_shared_category(invite_code)` | User says "I have an invite code" |
+| `add_to_shared_category(sc_id, footprint_id)` | Add an existing bookmark to a shared category |
+| `remove_from_shared_category(sc_id, footprint_id)` | Remove a bookmark from a shared category |
+| `copy_footprint(footprint_id, category_ids)` | Copy from shared category to your personal category |
 
-### 批量操作
-| 工具 | 什么时候用 |
-|------|-----------|
-| `batch_update_footprints(updates)` | 一次性改多条足迹的分类/标题/标签（最多 50 条） |
+### Batch Operations
+| Tool | When to Use |
+|------|-------------|
+| `batch_update_footprints(updates)` | Bulk edit bookmarks — change categories/titles/tags on up to 50 items at once |
 
-### 交付给用户
-| 工具 | 什么时候用 |
-|------|-----------|
-| `agent_magic_link()` | 🔑 整理完后生成链接发给用户，用户打开即见卡片界面。Agent 先行交付闭环核心
+### Delivery to User
+| Tool | When to Use |
+|------|-------------|
+| `agent_magic_link()` | 🔑 The delivery loop core. After organizing, generate a link → send to user. They open it to see a card-based interface |
 
-## ⚠️ 关键陷阱
+## ⚠️ Critical Pitfalls
 
-### update_footprint 的 category_ids 是替换，不是追加
+### update_footprint: category_ids REPLACES, not appends
 ```
-# ❌ 错误：想把足迹 42 移到分类 7，结果丢掉了原有的分类 3 和 5
+# ❌ Wrong: moving bookmark 42 to category 7 loses existing categories 3 and 5
 update_footprint(42, category_ids="7")
 
-# ✅ 正确：先查现有分类，拼上新 ID
-get_footprint(42) → 现有分类 [3, 5]
+# ✅ Right: fetch current categories first, then merge
+get_footprint(42) → existing categories [3, 5]
 update_footprint(42, category_ids="3,5,7")
 ```
 
-### subscribe 模式只读
-往 subscribe 模式的共享分类写入会 403。如果用户说"订阅了但加不进去"，告知该分类只读，需找创建者改为 cocreate。
+### subscribe mode is READ-ONLY
+Writing to a subscribe-mode shared category returns 403. If the user says "I subscribed but can't add anything", explain it's read-only — the creator needs to change it to cocreate.
 
-### 频率限制
-短时间内连续调用可能被限流（HTTP 429）。批量操作时加适当间隔，遇到 429 等几秒重试。
+### Rate Limiting
+Rapid consecutive calls may trigger HTTP 429. Add short delays between batch operations; on 429, wait a few seconds and retry.
 
-## 典型工作流
+## Typical Workflows
 
-### 新用户从零开始
+### New User From Scratch
 ```
-1. agent_register() → 拿到 token（自动记住）
-2. add_footprint(url="...") × N → 逐条添加收藏
-3. list_categories() → 了解分类情况
-4. create_category(name="学习") → 建分类
-5. update_footprint(id, category_ids="...") → 归类
-6. 告诉用户："已整理好，打开 https://ai.ocean94.com 查看"（用刚注册的 token 对应账号）
-```
-
-### 已有用户日常操作
-```
-1. my_info() → 确认身份
-2. list_categories() + list_tags() → 了解已有结构
-3. search_footprints(query) 或 list_footprints(category_id) → 找到目标
-4. add_footprint / update_footprint → 操作
+1. agent_register() → get token (auto-memorized)
+2. add_footprint(url="...") × N → save bookmarks one by one
+3. list_categories() → understand current structure
+4. create_category(name="Learning") → create a category
+5. update_footprint(id, category_ids="...") → categorize
+6. Tell user: "Done! Open https://ai.ocean94.com to view" (their token-based account)
 ```
 
-### 创建共享分类
+### Returning User — Daily Use
 ```
-1. create_shared_category(name="团队知识库", mode="cocreate")
-2. create_invite_link(shared_category_id=上一步返回的 ID)
-3. 返回邀请码给用户 → 用户发给同事
-4. 同事的 Agent 用 join_shared_category(invite_code) 加入
-ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)
-
-## 搭配热门 MCP 使用
-
-URL Manager 擅长**收藏和管理**，与擅长**发现和抓取**的 MCP 天然互补：
-
-```
-Fetch MCP 抓取网页  →  add_footprint()  →  自动归类，永久可搜
-Firecrawl 爬取内容 →  add_footprint()  →  分类整理，卡片式浏览
-Brave Search 搜索  →  add_footprint()  →  搜索结果一键收藏
+1. my_info() → confirm identity
+2. list_categories() + list_tags() → understand current structure
+3. search_footprints(query) or list_footprints(category_id) → find targets
+4. add_footprint / update_footprint → operate
 ```
 
-Agent 只需把上游 MCP 产出的 URL + 标题作为参数传给 `add_footprint` 即可。
+### Create Shared Category
+```
+1. create_shared_category(name="Team Knowledge Base", mode="cocreate")
+2. create_invite_link(shared_category_id=<returned ID>)
+3. Send the invite code to the user → user shares with teammates
+4. Teammates' Agents join via join_shared_category(invite_code)
+```
 
-## 部署（给人类看）
+## Pairing with Popular MCP Servers
+
+URL Manager excels at **saving and organizing**. Pair it with tools that excel at **discovering and fetching**:
+
+```
+Fetch MCP scrapes web  →  add_footprint()  →  auto-categorized, permanent, searchable
+Firecrawl crawls pages →  add_footprint()  →  organized into cards
+Brave Search finds URLs →  add_footprint()  →  one-click save from search results
+```
+
+Agents just pass the upstream MCP's URL + title as params to `add_footprint`.
+
+## Deployment (for Humans)
 
 ```bash
 git clone https://github.com/Piccolo123/url-manager-mcp.git
 cd url-manager-mcp && pip install -r requirements.txt
 ```
 
-Cherry Studio / Claude Desktop 配置：
+Cherry Studio / Claude Desktop config:
 
 ```json
 {
@@ -135,7 +135,6 @@ Cherry Studio / Claude Desktop 配置：
   }
 }
 ```
-# 已有账号则加 "env": {"FOOTPRINTS_TOKEN": "FA_xxx"}
-```
+If user already has an account, add: `"env": {"FOOTPRINTS_TOKEN": "FA_xxx"}`
 
-ModelScope 广场：[跨平台页面收藏管理分享](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)
+ModelScope: [url-manager-mcp](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)

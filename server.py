@@ -1,55 +1,58 @@
 """
-AI 足迹 MCP Server — Agent 先行设计
+URL Manager MCP Server — Agent-first design
 
-让 AI Agent 通过 MCP 协议操作用户的 AI 足迹数据。
-支持从零注册到全流程管理的完整 Agent 代理体验。
+AI agents manage users' web bookmarks (collections) through MCP protocol.
+Full agent-proxy lifecycle from zero to fully managed: register → operate → deliver.
 
-核心 Agent 工作流：
-  用户没有账号 → agent_register() 创建 → Token 自动生效 → 全流程操作
-  用户已有账号 → 配 FOOTPRINTS_TOKEN 环境变量 → 全流程操作
+Core Agent Workflow:
+  No account → agent_register() creates one → token auto-applied → full access
+  Has account → set FOOTPRINTS_TOKEN env var → full access
 """
 
+import json
 import os
+import sys
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 
-# ── 全局状态 ──────────────────────────────────────────
+# ── Global State ──────────────────────────────────────
 ENDPOINT = os.getenv("FOOTPRINTS_ENDPOINT", "https://ai.ocean94.com")
 TOKEN = os.getenv("FOOTPRINTS_TOKEN", "")
 
 
 def _auth_headers() -> dict:
-    """动态获取鉴权头——agent_register() 更新 TOKEN 后即时生效"""
+    """Dynamic auth — agent_register() updates TOKEN globally and it takes effect immediately."""
     return {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}
 
 
 mcp = FastMCP(
     "url-manager",
     instructions="""
-你是 AI 足迹的助手，帮用户管理收藏的网页、文章、视频。
+You are a URL Manager assistant, helping users manage their saved web pages, articles, and videos.
 
-首次对话流程：
-1. 问用户有没有账号
-2. 没有 → agent_register() 创建（⚠️ 只调一次！会创建新账号）
-3. 有 → 确认 FOOTPRINTS_TOKEN 已配置
-4. my_info() 验证连接
+First-conversation flow:
+1. Ask the user if they have a URL Manager account
+2. No → call agent_register() ONCE (⚠️ creates a new account each call)
+3. Yes → confirm FOOTPRINTS_TOKEN is configured
+4. Call my_info() to verify the connection
 
-日常操作：
-- 操作足迹前先 list_categories() + list_tags() 了解结构
-- update_footprint 的 category_ids 是替换不是追加，先 get_footprint 再拼 ID
-- subscribe 模式共享分类只读，写入会 403
-- 频繁调用可能被限流（429），等几秒重试
-- 批量整理用 batch_update_footprints，一次最多 50 条
+Daily operations:
+- Before adding or updating, call list_categories() + list_tags() to understand the current structure
+- update_footprint's category_ids REPLACES the entire list — not append. Always get_footprint() first, then merge IDs
+- subscribe-mode shared categories are READ-ONLY; writing returns 403
+- Frequent calls may hit rate limits (429); wait a few seconds and retry
+- For batch reorganization, use batch_update_footprints (max 50 at a time)
 
-交付闭环（Agent 先行核心）：
-- 整理完调用 agent_magic_link() 生成链接
-- 把链接发给用户："整理好了，点这里查看 → [链接]"
-- 用户打开就是卡片式界面，30 天有效
+Delivery loop (Agent-first core):
+- After organizing, call agent_magic_link() to generate a link
+- Send the link to the user: "Done organizing — view here → [link]"
+- User opens it to see a card-based interface; link valid for 30 days
 """,
 )
 
 
-# ── 辅助 ──────────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────
 
 async def _api(method: str, path: str, **kwargs) -> dict:
     url = f"{ENDPOINT}{path}"
@@ -59,15 +62,16 @@ async def _api(method: str, path: str, **kwargs) -> dict:
         return resp.json()
 
 
-# ── Agent 注册（无需 Token）────────────────────────────
+# ── Agent Registration (no token needed) ──────────────
 
 @mcp.tool()
 async def agent_register() -> dict:
-    """帮用户创建 AI 足迹账号。无参数，无需 Token。
+    """Create a new URL Manager account for the user. No parameters, no token needed.
 
-    每次调用创建全新账号，返回 token 自动记忆。
-    ⚠️ 不要重复调用！如果用户已有账号但忘了给 Token，调此工具会创建空白新账号。
-    使用前先问用户"有 AI 足迹账号吗？"
+    Each call creates a brand new account and auto-memorizes the returned token.
+    ⚠️ NEVER call this more than once! If the user already has an account but
+    forgot to share their token, you'll create a second empty account.
+    Always ask "Do you have a URL Manager account?" before calling.
     """
     global TOKEN
     result = await _api("POST", "/api/v1/agent/register")
@@ -76,26 +80,28 @@ async def agent_register() -> dict:
     return result
 
 
-# ── 用户信息 ──────────────────────────────────────────
+# ── User Info ─────────────────────────────────────────
 
 @mcp.tool()
 async def my_info() -> dict:
-    """首次对话先调此工具，确认 Token 有效且连接正常。
-    返回用户名、会员状态。也可用于用户问"我是谁"时。
+    """Call this at the start of every conversation to confirm the token is valid
+    and the connection works. Returns username and membership status.
+    Also useful when the user asks "Who am I?"
     """
     return await _api("GET", "/api/v1/agent/me")
 
 
-# ── 足迹搜索/列表 ─────────────────────────────────────
+# ── Search & List ─────────────────────────────────────
 
 @mcp.tool()
 async def search_footprints(query: str, limit: int = 10, offset: int = 0) -> dict:
-    """用户说"找 XX 的收藏"时用。在标题/描述/URL 中全文搜索。
+    """Full-text search across titles, descriptions, and URLs.
+    Use when the user says "find that article about..."
 
     Args:
-        query: 搜索关键词
-        limit: 返回条数（最大 100）
-        offset: 偏移量（翻页用）
+        query: Search keywords
+        limit: Results per page (max 100)
+        offset: Pagination offset
     """
     return await _api("GET", "/api/v1/agent/collections", params={
         "q": query, "limit": min(limit, 100), "offset": offset
@@ -104,12 +110,13 @@ async def search_footprints(query: str, limit: int = 10, offset: int = 0) -> dic
 
 @mcp.tool()
 async def list_footprints(category_id: int = 0, limit: int = 20, offset: int = 0) -> dict:
-    """用户说"看看收藏"时用。按分类列出，category_id=0=全部。
+    """List bookmarks. category_id=0 means all categories.
+    Use when the user says "show me my bookmarks" or "what have I saved?"
 
     Args:
-        category_id: 分类 ID（0=全部，从 list_categories 结果中取）
-        limit: 返回条数（最大 100）
-        offset: 偏移量（翻页用）
+        category_id: Category ID (0=all, get IDs from list_categories)
+        limit: Results per page (max 100)
+        offset: Pagination offset
     """
     params = {"limit": min(limit, 100), "offset": offset}
     if category_id > 0:
@@ -119,32 +126,32 @@ async def list_footprints(category_id: int = 0, limit: int = 20, offset: int = 0
 
 @mcp.tool()
 async def get_footprint(footprint_id: int) -> dict:
-    """看某条收藏的完整详情。
+    """Get full details of a single bookmark.
 
     Args:
-        footprint_id: 足迹 ID（从 list_footprints 结果中 id 字段取）
+        footprint_id: Bookmark ID (from list_footprints or search results, field "id")
     """
     return await _api("GET", f"/api/v1/agent/collections/{footprint_id}")
 
 
-# ── 足迹添加 ──────────────────────────────────────────
+# ── Create ────────────────────────────────────────────
 
 @mcp.tool()
 async def add_footprint(
     url: str, title: str = "", description: str = "",
     category_ids: str = "", tag_names: str = "",
 ) -> dict:
-    """添加一条收藏。用户说"收藏这个链接"时用。
+    """Add a new bookmark. Use when the user says "save/bookmark this link".
 
-    调用前先 list_categories() 和 list_tags() 了解已有分类/标签，
-    避免创建重复分类。标题留空自动从网页提取。
+    Call list_categories() and list_tags() FIRST to discover existing categories
+    and tags — avoid creating duplicates. If title is empty, it will be auto-extracted.
 
     Args:
-        url: 网页链接（必填）
-        title: 自定义标题（留空自动提取）
-        description: 摘要
-        category_ids: 分类 ID，逗号分隔如 "1,3"
-        tag_names: 标签名，逗号分隔如 "AI,教程"
+        url: Web page URL (required)
+        title: Custom title (leave empty for auto-extraction)
+        description: Summary/notes
+        category_ids: Comma-separated category IDs, e.g. "1,3"
+        tag_names: Comma-separated tag names, e.g. "AI,tutorial"
     """
     body = {"url": url}
     if title:
@@ -158,22 +165,22 @@ async def add_footprint(
     return await _api("POST", "/api/v1/agent/collections", json=body)
 
 
-# ── 足迹更新 ──────────────────────────────────────────
+# ── Update ────────────────────────────────────────────
 
 @mcp.tool()
 async def update_footprint(
     footprint_id: int, title: str = "", description: str = "",
     category_ids: str = "", tag_names: str = "",
 ) -> dict:
-    """更新足迹。用户说"改标题/移分类"时用。
+    """Update a bookmark. Use when the user says "change the title/move to another category".
 
-    ⚠️ category_ids 是替换整个列表，不是追加！
-    正确做法：先 get_footprint(id) 拿现有分类 → 拼上新 ID → 再传 category_ids。
-    例：现有 [3,5]，要加 7 → category_ids="3,5,7"（不是 "7"）
+    ⚠️ category_ids REPLACES the entire category list — NOT append!
+    Correct approach: get_footprint(id) to see current categories → merge in new IDs → send the full list.
+    Example: existing [3,5], want to add 7 → category_ids="3,5,7" (NOT just "7")
 
     Args:
-        footprint_id: 足迹 ID（从搜索结果取）
-        title/description/category_ids/tag_names: 留空不改
+        footprint_id: Bookmark ID (from search or list results)
+        title/description/category_ids/tag_names: Leave empty to keep unchanged
     """
     body = {}
     if title:
@@ -185,32 +192,32 @@ async def update_footprint(
     if tag_names:
         body["tag_names"] = [x.strip() for x in tag_names.split(",") if x.strip()]
     if not body:
-        return {"error": "至少填一个要改的字段"}
+        return {"error": "At least one field to update is required"}
     return await _api("PUT", f"/api/v1/agent/collections/{footprint_id}", json=body)
 
 
-# ── 分类（含共享分类）─────────────────────────────────
-# list_categories 返回所有分类，包括个人和共享。
-# 共享分类的 mode 字段为 "cocreate" 或 "subscribe"，个人分类为 null。
+# ── Categories & Tags ─────────────────────────────────
+# list_categories returns all categories — personal AND shared.
+# Shared categories have mode="cocreate" or "subscribe"; personal have mode=null.
 
 @mcp.tool()
 async def list_categories() -> dict:
-    """列出所有分类（个人 + 共享）。操作足迹前必须先调此工具。
+    """List all categories (personal + shared). ALWAYS call this before operating on bookmarks.
 
-    返回的每个分类有 id、name、mode 字段。
-    mode=null 是个人分类，mode="cocreate"/"subscribe" 是共享分类。
-    id 字段用于 add_footprint / update_footprint 的 category_ids 参数。
+    Returns each category with id, name, and mode fields.
+    mode=null → personal category. mode="cocreate"/"subscribe" → shared category.
+    Use the 'id' field in add_footprint / update_footprint category_ids parameter.
     """
     return await _api("GET", "/api/v1/agent/categories")
 
 
 @mcp.tool()
 async def create_category(name: str, category_set_id: int = 0) -> dict:
-    """建新分类。先 list_categories 确认不重名。
+    """Create a new category. Call list_categories() first to avoid duplicates.
 
     Args:
-        name: 分类名称
-        category_set_id: 所属分类集（0=默认）
+        name: Category name
+        category_set_id: Parent category set (0=default)
     """
     body = {"name": name}
     if category_set_id > 0:
@@ -220,37 +227,38 @@ async def create_category(name: str, category_set_id: int = 0) -> dict:
 
 @mcp.tool()
 async def list_tags() -> dict:
-    """列出用户所有标签。"""
+    """List all tags used by this user."""
     return await _api("GET", "/api/v1/agent/tags")
 
 
-# ── 分类集 ────────────────────────────────────────────
+# ── Category Sets ─────────────────────────────────────
 
 @mcp.tool()
 async def list_category_sets() -> dict:
-    """列出所有分类集。通常不需要。"""
+    """List all category sets. Rarely needed."""
     return await _api("GET", "/api/v1/agent/category-sets")
 
 
 @mcp.tool()
 async def create_category_set(name: str) -> dict:
-    """创建新分类集。
+    """Create a new category set (a container of categories).
+
     Args:
-        name: 分类集名称
+        name: Category set name
     """
     return await _api("POST", "/api/v1/agent/category-sets", json={"name": name})
 
 
-# ── 共享分类 ──────────────────────────────────────────
+# ── Shared Categories ─────────────────────────────────
 
 @mcp.tool()
 async def create_shared_category(
     name: str, mode: str = "cocreate", description: str = "",
 ) -> dict:
-    """创建共享分类。"cocreate"=多人可编辑，"subscribe"=只读分享。
+    """Create a shared category. "cocreate" = multiple editors, "subscribe" = read-only.
 
-    ⚠️ subscribe 模式下任何人（包括创建者）都无法往里面写入，调用 add_footprint 会 403。
-    如果用户想协作编辑，用 mode="cocreate"。
+    ⚠️ In subscribe mode, NO ONE (including the creator) can add bookmarks —
+    add_to_shared_category returns 403. Use mode="cocreate" if collaboration is needed.
     """
     body = {"name": name, "mode": mode}
     if description:
@@ -260,21 +268,21 @@ async def create_shared_category(
 
 @mcp.tool()
 async def join_shared_category(invite_code: str) -> dict:
-    """通过邀请码加入共享分类。
+    """Join a shared category by invite code.
 
     Args:
-        invite_code: 8 位邀请码
+        invite_code: 8-character invite code
     """
     return await _api("POST", "/api/v1/agent/shared-categories/join", json={"code": invite_code})
 
 
 @mcp.tool()
 async def create_invite_link(shared_category_id: int, duration_hours: int = 24) -> dict:
-    """生成邀请链接，发给别人即可加入。
+    """Generate an invite link to share with others.
 
     Args:
-        shared_category_id: 共享分类 ID（从 list_categories 结果中 mode 不为 null 的分类取）
-        duration_hours: 有效期（小时）
+        shared_category_id: Shared category ID (from list_categories — pick ones where mode is not null)
+        duration_hours: Link validity in hours
     """
     return await _api("POST", f"/api/v1/agent/shared-categories/{shared_category_id}/invite-link",
                       json={"duration_hours": duration_hours})
@@ -282,11 +290,11 @@ async def create_invite_link(shared_category_id: int, duration_hours: int = 24) 
 
 @mcp.tool()
 async def add_to_shared_category(shared_category_id: int, footprint_id: int) -> dict:
-    """将一条已有足迹加入共享分类。该足迹必须是你创建的。
+    """Add one of your existing bookmarks to a shared category. The bookmark must be yours.
 
     Args:
-        shared_category_id: 共享分类 ID
-        footprint_id: 足迹 ID
+        shared_category_id: Shared category ID
+        footprint_id: Bookmark ID
     """
     return await _api("POST", f"/api/v1/agent/shared-categories/{shared_category_id}/collections",
                       json={"collection_id": footprint_id})
@@ -294,11 +302,11 @@ async def add_to_shared_category(shared_category_id: int, footprint_id: int) -> 
 
 @mcp.tool()
 async def remove_from_shared_category(shared_category_id: int, footprint_id: int) -> dict:
-    """将足迹从共享分类移出（不删除足迹本身）。
+    """Remove a bookmark from a shared category (does not delete the bookmark itself).
 
     Args:
-        shared_category_id: 共享分类 ID
-        footprint_id: 足迹 ID
+        shared_category_id: Shared category ID
+        footprint_id: Bookmark ID
     """
     return await _api("DELETE",
                       f"/api/v1/agent/shared-categories/{shared_category_id}/collections/{footprint_id}")
@@ -306,33 +314,33 @@ async def remove_from_shared_category(shared_category_id: int, footprint_id: int
 
 @mcp.tool()
 async def copy_footprint(footprint_id: int, category_ids: str) -> dict:
-    """从共享分类复制一条足迹到自己的个人分类。
+    """Copy a bookmark from a shared category into your own personal category.
 
     Args:
-        footprint_id: 要复制的足迹 ID
-        category_ids: 目标分类 ID，逗号分隔，如 "1,3"
+        footprint_id: Bookmark ID to copy
+        category_ids: Target category IDs, comma-separated, e.g. "1,3"
     """
     cids = [int(x.strip()) for x in category_ids.split(",") if x.strip()]
     return await _api("POST", f"/api/v1/agent/collections/{footprint_id}/copy",
                       json={"category_ids": cids})
 
 
+# ── Batch ─────────────────────────────────────────────
+
 @mcp.tool()
 async def batch_update_footprints(updates: str) -> dict:
-    """批量更新足迹，一次最多 50 条。用于批量整理场景。
+    """Batch update bookmarks — max 50 at a time. For bulk reorganization.
 
     Args:
-        updates: JSON 字符串，格式 '[{"id":"uuid","title":"新标题","category_ids":"1,3"},...]'
-                每个对象可含 title/description/category_ids/tag_names，id 必填
+        updates: JSON string, format '[{"id":"uuid","title":"New Title","category_ids":"1,3"}, ...]'
+                 Each object may contain title/description/category_ids/tag_names; "id" is required
     """
-    import json
     try:
         items = json.loads(updates)
     except json.JSONDecodeError:
-        return {"error": "updates 必须是有效 JSON 数组"}
+        return {"error": "updates must be a valid JSON array"}
     if len(items) > 50:
-        return {"error": "最多 50 条"}
-    # 转换 category_ids 和 tag_names
+        return {"error": "Maximum 50 items per batch"}
     for item in items:
         if "category_ids" in item and isinstance(item["category_ids"], str):
             item["category_ids"] = [int(x.strip()) for x in item["category_ids"].split(",") if x.strip()]
@@ -341,22 +349,23 @@ async def batch_update_footprints(updates: str) -> dict:
     return await _api("PUT", "/api/v1/agent/collections/batch", json={"updates": items})
 
 
+# ── Delivery ──────────────────────────────────────────
+
 @mcp.tool()
 async def agent_magic_link() -> dict:
-    """生成魔法链接，发给用户即可在浏览器中打开整理好的收藏界面。
-    
-    这是 Agent 先行的交付闭环核心——Agent 帮用户整理完后，
-    调用此工具生成链接发给用户，用户点击即可看到卡片式界面。
-    链接 30 天有效，可重复使用。
+    """Generate a magic link to send to the user. This is the Agent-first delivery loop core.
+
+    After the Agent organizes the user's bookmarks, call this to generate a link.
+    Send it to the user: "Done organizing — view here → [link]"
+    User clicks to see a card-based interface. Link valid for 30 days, reusable.
     """
     return await _api("POST", "/api/v1/agent/magic-link")
 
 
-# ── 启动 ──────────────────────────────────────────────
+# ── Startup ───────────────────────────────────────────
 
 def main():
-    """启动 MCP Server。默认 STDIO（本地 Agent），也可用 streamable-http（Docker/Glama 测试）"""
-    import sys
+    """Start the MCP Server. STDIO for local Agents, --http for Docker/Glama testing."""
     transport = "stdio"
     if "--http" in sys.argv:
         transport = "streamable-http"
