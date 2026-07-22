@@ -2,11 +2,32 @@
 name = "url-manager-mcp"
 version = "1.0.0"
 description = "URL Manager MCP Server — Agent-first web link collection & knowledge management"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Piccolo123"}
+]
+keywords = ["mcp", "bookmarks", "url-manager", "knowledge-management", "shared-collections"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Office/Business :: Groupware",
+]
 requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.0.0",
     "httpx>=0.27.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Piccolo123/url-manager-mcp"
+Repository = "https://github.com/Piccolo123/url-manager-mcp"
 
 [project.scripts]
 url-manager-mcp = "server:main"
