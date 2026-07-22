@@ -3,7 +3,7 @@
   "maintainers": ["Piccolo123"],
   "name": "url-manager-mcp",
   "display_name": "URL Manager MCP Server",
-  "description": "Agent-first web link collection & knowledge management. AI agents auto-register, collect, categorize, tag, search, and share bookmarks across devices. 16 MCP tools with full CRUD, batch operations, and shared collections.",
+  "description": "Agent-first web link collection & knowledge management. AI agents auto-register, collect, categorize, tag, search, and share bookmarks across devices. 20 MCP tools with full CRUD, batch operations, shared collections, and magic-link delivery.",
   "repository": "https://github.com/Piccolo123/url-manager-mcp",
   "license": "MIT",
   "runtime": "python",

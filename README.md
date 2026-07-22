@@ -3,140 +3,196 @@
 [![url-manager-mcp MCP server](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/Piccolo123/url-manager-mcp/blob/main/LICENSE)
 
-Agent-first MCP server for managing users' web bookmarks. Agents auto-register, collect, categorize, tag, search, and share URLs — zero manual setup for end users.
+[English](./README.md) | [简体中文](./README.zh-CN.md)
 
-> 📖 **For detailed workflows, patterns, and behavioral guidelines, see the [URL Manager Skill](https://github.com/Piccolo123/url-manager/blob/main/SKILL.md).**
+A Model Context Protocol server for managing web bookmarks — cross-device sync, categories, tags, full-text search, batch operations, and team sharing. 20 tools with auto-registration so no manual setup is required.
 
-## First Conversation (Every Time)
+> 📖 **Usage patterns and best practices → [URL Manager Skill](https://github.com/Piccolo123/url-manager/blob/main/SKILL.md)**
 
-1. If no token provided, ask "Do you have a URL Manager account?"
-2. No → Call `agent_register()` to create one (token auto-applied)
-3. Yes → Have the user provide their token, set `FOOTPRINTS_TOKEN` env var
-4. Call `my_info()` to confirm the connection works
-
-> ⚠️ `agent_register()` creates a NEW account every time. **Never call it twice** — if the user forgot they already have an account, you'll create a duplicate empty one.
-
-## Tool Reference
+## Tools
 
 ### Registration & Identity
-| Tool | When to Use |
-|------|-------------|
-| `agent_register()` | User has no account. No params, returns token auto-memorized |
-| `my_info()` | First-conversation connection check, or user asks "Who am I?" |
+
+- **`agent_register()`**
+  Create a new account. No parameters. Token is auto-applied for all subsequent calls.
+  ⚠️ Call once only — each invocation creates a fresh account.
+
+- **`my_info()`**
+  Verify connection and token validity. Returns username and membership status.
 
 ### Bookmarks
-| Tool | When to Use | Key Param Source |
-|------|-------------|------------------|
-| `search_footprints(query)` | User says "find that article about..." | query from user input |
-| `list_footprints(category_id)` | User says "show me my bookmarks" | category_id from `list_categories()` result |
-| `get_footprint(footprint_id)` | View full details of one bookmark | footprint_id from search or list results |
-| `add_footprint(url, ...)` | User says "save/bookmark this" | url required; category_ids/tags from `list_categories()` / `list_tags()` |
-| `update_footprint(id, ...)` | User says "change title/move to another category" | id from search or list results |
+
+- **`search_footprints(query, limit, offset)`**
+  Full-text search across titles, descriptions, and URLs.
+  - `query` _(required)_ — Search keywords
+  - `limit` — Results per page (default 10, max 100)
+  - `offset` — Pagination offset (default 0)
+
+- **`list_footprints(category_id, limit, offset)`**
+  List bookmarks by category. `category_id=0` returns all.
+  - `limit` — Results per page (default 20, max 100)
+  - `offset` — Pagination offset (default 0)
+
+- **`get_footprint(footprint_id)`**
+  Get full details of a single bookmark.
+  - `footprint_id` _(required)_ — From `list_footprints` or `search_footprints` results (field `id`)
+
+- **`add_footprint(url, title, description, category_ids, tag_names)`**
+  Add a new bookmark. Call `list_categories()` and `list_tags()` first to discover existing structure.
+  - `url` _(required)_ — Web page URL
+  - `title` — Leave empty to auto-extract from the page
+  - `description` — Summary or notes
+  - `category_ids` — Comma-separated IDs, e.g. `"1,3"`
+  - `tag_names` — Comma-separated names, e.g. `"AI,tutorial"`
+
+- **`update_footprint(footprint_id, title, description, category_ids, tag_names)`**
+  Update a bookmark. Omitted fields stay unchanged.
+  ⚠️ `category_ids` **replaces** the entire list — not append. Call `get_footprint()` first, then merge IDs.
+  - `footprint_id` _(required)_ — From search or list results
 
 ### Categories & Tags
-| Tool | When to Use | Notes |
-|------|-------------|-------|
-| `list_categories()` | ALWAYS call before operating on bookmarks — discover existing structure | Returns personal + shared categories. mode=null → personal, mode="cocreate"/"subscribe" → shared |
-| `create_category(name)` | User says "create a new category" | Call `list_categories()` first to avoid duplicates |
-| `list_tags()` | Before tagging — avoid duplicate tags | Returns existing tags |
+
+- **`list_categories()`**
+  List all categories (personal + shared). Returns `id`, `name`, and `mode` fields.
+  `mode=null` → personal; `mode="cocreate"/"subscribe"` → shared.
+
+- **`create_category(name, category_set_id)`**
+  Create a new category. Check `list_categories()` first to avoid duplicates.
+  - `name` _(required)_ — Category name
+  - `category_set_id` — Parent category set (0 = default)
+
+- **`list_tags()`**
+  List all tags used by this account.
+
+### Category Sets
+
+- **`list_category_sets()`**
+  List all category sets.
+
+- **`create_category_set(name)`**
+  Create a new category set (a container of categories).
+  - `name` _(required)_ — Category set name
 
 ### Shared Categories
-| Tool | When to Use |
-|------|-------------|
-| `create_shared_category(name, mode)` | User says "create a shared collection". mode="cocreate" (editable) / "subscribe" (read-only) |
-| `create_invite_link(shared_category_id)` | User says "send the invite link to..." — id from `list_categories()` shared entries |
-| `join_shared_category(invite_code)` | User says "I have an invite code" |
-| `add_to_shared_category(sc_id, footprint_id)` | Add an existing bookmark to a shared category |
-| `remove_from_shared_category(sc_id, footprint_id)` | Remove a bookmark from a shared category |
-| `copy_footprint(footprint_id, category_ids)` | Copy from shared category to your personal category |
 
-### Batch Operations
-| Tool | When to Use |
-|------|-------------|
-| `batch_update_footprints(updates)` | Bulk edit bookmarks — change categories/titles/tags on up to 50 items at once |
+- **`create_shared_category(name, mode, description)`**
+  Create a shared category for team collaboration.
+  - `name` _(required)_
+  - `mode` _(required)_ — `"cocreate"` (multiple editors) or `"subscribe"` (read-only)
+  - `description` — Optional description
+  ⚠️ In `subscribe` mode, adding bookmarks returns **403**. Use `"cocreate"` for editable collaboration.
 
-### Delivery to User
-| Tool | When to Use |
-|------|-------------|
-| `agent_magic_link()` | 🔑 The delivery loop core. After organizing, generate a link → send to user. They open it to see a card-based interface |
+- **`create_invite_link(shared_category_id, duration_hours)`**
+  Generate an invite link for others to join.
+  - `shared_category_id` _(required)_ — From `list_categories()` (shared entries)
+  - `duration_hours` — Default 24
 
-## ⚠️ Critical Pitfalls
+- **`join_shared_category(invite_code)`**
+  Join a shared category by invite code.
+  - `invite_code` _(required)_ — 8-character code from the invite link
 
-### update_footprint: category_ids REPLACES, not appends
-```
-# ❌ Wrong: moving bookmark 42 to category 7 loses existing categories 3 and 5
-update_footprint(42, category_ids="7")
+- **`add_to_shared_category(shared_category_id, footprint_id)`**
+  Add one of your own bookmarks to a shared category.
+  - Both parameters required
 
-# ✅ Right: fetch current categories first, then merge
-get_footprint(42) → existing categories [3, 5]
-update_footprint(42, category_ids="3,5,7")
-```
+- **`remove_from_shared_category(shared_category_id, footprint_id)`**
+  Remove a bookmark from a shared category. Does not delete the bookmark itself.
+  - Both parameters required
 
-### subscribe mode is READ-ONLY
-Writing to a subscribe-mode shared category returns 403. If the user says "I subscribed but can't add anything", explain it's read-only — the creator needs to change it to cocreate.
+- **`copy_footprint(footprint_id, category_ids)`**
+  Copy a bookmark from a shared category into your personal collection.
+  - Both parameters required
 
-### Rate Limiting
-Rapid consecutive calls may trigger HTTP 429. Add short delays between batch operations; on 429, wait a few seconds and retry.
+### Batch & Delivery
 
-## Typical Workflows
+- **`batch_update_footprints(updates)`**
+  Bulk edit up to 50 bookmarks at once.
+  - `updates` _(required)_ — JSON string: `[{"id":"...", "title":"New Title", "category_ids":"1,3"}, ...]`
+  Each object may contain `title`, `description`, `category_ids`, `tag_names`; `id` is required.
 
-### New User From Scratch
-```
-1. agent_register() → get token (auto-memorized)
-2. add_footprint(url="...") × N → save bookmarks one by one
-3. list_categories() → understand current structure
-4. create_category(name="Learning") → create a category
-5. update_footprint(id, category_ids="...") → categorize
-6. Tell user: "Done! Open https://ai.ocean94.com to view" (their token-based account)
-```
+- **`agent_magic_link()`**
+  Generate a delivery link. Send to the user — they open it to see a card-based interface with all their organized bookmarks. **Valid for 30 days, reusable.**
 
-### Returning User — Daily Use
-```
-1. my_info() → confirm identity
-2. list_categories() + list_tags() → understand current structure
-3. search_footprints(query) or list_footprints(category_id) → find targets
-4. add_footprint / update_footprint → operate
-```
-
-### Create Shared Category
-```
-1. create_shared_category(name="Team Knowledge Base", mode="cocreate")
-2. create_invite_link(shared_category_id=<returned ID>)
-3. Send the invite code to the user → user shares with teammates
-4. Teammates' Agents join via join_shared_category(invite_code)
-```
-
-## Pairing with Popular MCP Servers
-
-URL Manager excels at **saving and organizing**. Pair it with tools that excel at **discovering and fetching**:
-
-```
-Fetch MCP scrapes web  →  add_footprint()  →  auto-categorized, permanent, searchable
-Firecrawl crawls pages →  add_footprint()  →  organized into cards
-Brave Search finds URLs →  add_footprint()  →  one-click save from search results
-```
-
-Agents just pass the upstream MCP's URL + title as params to `add_footprint`.
-
-## Deployment (for Humans)
+## Installation
 
 ```bash
 git clone https://github.com/Piccolo123/url-manager-mcp.git
-cd url-manager-mcp && pip install -r requirements.txt
+cd url-manager-mcp
+pip install -r requirements.txt
 ```
 
-Cherry Studio / Claude Desktop config:
+### Prerequisites
+
+- Python 3.10+
+- Network access to `https://ai.ocean94.com`
+
+## Configuration
+
+### Claude Desktop / Claude Code
 
 ```json
 {
   "mcpServers": {
     "url-manager": {
       "command": "python",
-      "args": ["path/to/server.py"]
+      "args": ["path/to/url-manager-mcp/server.py"]
     }
   }
 }
 ```
-If user already has an account, add: `"env": {"FOOTPRINTS_TOKEN": "FA_xxx"}`
 
-ModelScope: [url-manager-mcp](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)
+If the user has an existing account:
+
+```json
+{
+  "mcpServers": {
+    "url-manager": {
+      "command": "python",
+      "args": ["path/to/url-manager-mcp/server.py"],
+      "env": {
+        "FOOTPRINTS_TOKEN": "FA_xxxxxxxxxxxx"
+      }
+    }
+  }
+}
+```
+
+### Cursor / Windsurf / Cherry Studio
+
+Same JSON structure as above. Works with any MCP-compatible client supporting STDIO transport.
+
+### Other Clients
+
+This server supports both **STDIO** (default) and **Streamable HTTP** transports:
+
+```bash
+# STDIO (default)
+python server.py
+
+# Streamable HTTP (for Docker / Glama / hosted environments)
+python server.py --http
+```
+
+## Deployment
+
+### Docker
+
+```bash
+docker build -t url-manager-mcp .
+docker run -e FOOTPRINTS_TOKEN="FA_xxx" url-manager-mcp
+```
+
+### ModelScope
+
+One-click hosted deployment: [url-manager-mcp](https://modelscope.cn/mcp/servers/Piccoloxl/url-manager)
+
+## Why URL Manager
+
+Browser bookmarks are flat lists with no organization, no search, and no sharing. URL Manager adds:
+
+- **Categories, category sets, and tags** — Hierarchical organization
+- **Full-text search** — Find anything across all titles, descriptions, and URLs
+- **Cross-device sync** — Save on one device, access on all
+- **Batch management** — Sort and organize hundreds of links at once
+- **Team sharing** — Co-editing and read-only shared collections with invite links
+- **Card-based delivery** — Send organized collections as a polished interface, not raw URLs
