@@ -31,11 +31,11 @@ mcp = FastMCP(
     instructions="""
 You are a URL Manager assistant, helping users manage their saved web pages, articles, and videos.
 
-First-conversation flow:
-1. Ask the user if they have a URL Manager account
-2. No → call agent_register() ONCE (⚠️ creates a new account each call)
-3. Yes → confirm FOOTPRINTS_TOKEN is configured
-4. Call my_info() to verify the connection
+Token flow (every session):
+1. If FOOTPRINTS_TOKEN is set → call my_info() to verify. Done.
+2. If not → ask: "Do you have a URL Manager account?"
+   - No → call agent_register() ONCE (⚠️ creates a new account each call). Token auto-applied.
+   - Yes → ask user to provide their token, set FOOTPRINTS_TOKEN, then my_info() to verify.
 
 Daily operations:
 - Before adding or updating, call list_categories() + list_tags() to understand the current structure
@@ -47,7 +47,7 @@ Daily operations:
 Delivery loop (Agent-first core):
 - After organizing, call agent_magic_link() to generate a link
 - Send the link to the user: "Done organizing — view here → [link]"
-- User opens it to see a card-based interface; link valid for 30 days
+- User opens it to see a card-based interface; link valid for 30 days, reusable
 
 For detailed workflows, patterns, and behavioral guidelines, see the skill:
 https://github.com/Piccolo123/url-manager/blob/main/SKILL.md
@@ -69,12 +69,12 @@ async def _api(method: str, path: str, **kwargs) -> dict:
 
 @mcp.tool()
 async def agent_register() -> dict:
-    """Create a new URL Manager account for the user. No parameters, no token needed.
+    """Create a new URL Manager account. Use when the user has no existing account
+    and no token is configured — the default path for first-time users.
 
-    Each call creates a brand new account and auto-memorizes the returned token.
-    ⚠️ NEVER call this more than once! If the user already has an account but
-    forgot to share their token, you'll create a second empty account.
-    Always ask "Do you have a URL Manager account?" before calling.
+    No parameters. Token is auto-memorized for all subsequent calls.
+    ⚠️ NEVER call this more than once! Each call creates a fresh empty account.
+    When in doubt, call my_info() first to check if a token is already active.
     """
     global TOKEN
     result = await _api("POST", "/api/v1/agent/register")
@@ -87,9 +87,10 @@ async def agent_register() -> dict:
 
 @mcp.tool()
 async def my_info() -> dict:
-    """Call this at the start of every conversation to confirm the token is valid
-    and the connection works. Returns username and membership status.
-    Also useful when the user asks "Who am I?"
+    """Verify token validity and confirm connection. Use at the start of every
+    conversation, or when the user asks "Who am I?" / "What account is this?"
+
+    Returns username and membership status.
     """
     return await _api("GET", "/api/v1/agent/me")
 
@@ -99,7 +100,7 @@ async def my_info() -> dict:
 @mcp.tool()
 async def search_footprints(query: str, limit: int = 10, offset: int = 0) -> dict:
     """Full-text search across titles, descriptions, and URLs.
-    Use when the user says "find that article about..."
+    Use when the user says "find that article about Docker" or "search for...".
 
     Args:
         query: Search keywords
@@ -113,8 +114,8 @@ async def search_footprints(query: str, limit: int = 10, offset: int = 0) -> dic
 
 @mcp.tool()
 async def list_footprints(category_id: int = 0, limit: int = 20, offset: int = 0) -> dict:
-    """List bookmarks. category_id=0 means all categories.
-    Use when the user says "show me my bookmarks" or "what have I saved?"
+    """List bookmarks by category. Use when the user says "show me my bookmarks",
+    "what have I saved?", or "list everything in this category".
 
     Args:
         category_id: Category ID (0=all, get IDs from list_categories)
@@ -129,7 +130,9 @@ async def list_footprints(category_id: int = 0, limit: int = 20, offset: int = 0
 
 @mcp.tool()
 async def get_footprint(footprint_id: int) -> dict:
-    """Get full details of a single bookmark.
+    """Get full details of a single bookmark. Use when the user says
+    "show me the details of that bookmark" or before updating to see
+    existing categories.
 
     Args:
         footprint_id: Bookmark ID (from list_footprints or search results, field "id")
@@ -144,7 +147,7 @@ async def add_footprint(
     url: str, title: str = "", description: str = "",
     category_ids: str = "", tag_names: str = "",
 ) -> dict:
-    """Add a new bookmark. Use when the user says "save/bookmark this link".
+    """Add a new bookmark. Use when the user says "save/bookmark/collect this link".
 
     Call list_categories() and list_tags() FIRST to discover existing categories
     and tags — avoid creating duplicates. If title is empty, it will be auto-extracted.
@@ -175,10 +178,11 @@ async def update_footprint(
     footprint_id: int, title: str = "", description: str = "",
     category_ids: str = "", tag_names: str = "",
 ) -> dict:
-    """Update a bookmark. Use when the user says "change the title/move to another category".
+    """Update a bookmark. Use when the user says "change the title",
+    "move to another category", or "add a description".
 
     ⚠️ category_ids REPLACES the entire category list — NOT append!
-    Correct approach: get_footprint(id) to see current categories → merge in new IDs → send the full list.
+    Correct approach: get_footprint(id) → see current categories → merge in new IDs.
     Example: existing [3,5], want to add 7 → category_ids="3,5,7" (NOT just "7")
 
     Args:
@@ -205,7 +209,8 @@ async def update_footprint(
 
 @mcp.tool()
 async def list_categories() -> dict:
-    """List all categories (personal + shared). ALWAYS call this before operating on bookmarks.
+    """List all categories (personal + shared). Use at the start of any bookmark
+    operation to discover available categories and their IDs.
 
     Returns each category with id, name, and mode fields.
     mode=null → personal category. mode="cocreate"/"subscribe" → shared category.
@@ -216,7 +221,10 @@ async def list_categories() -> dict:
 
 @mcp.tool()
 async def create_category(name: str, category_set_id: int = 0) -> dict:
-    """Create a new category. Call list_categories() first to avoid duplicates.
+    """Create a new category. Use when the user says "create a new category called..."
+    or when organizing bookmarks into a new group.
+
+    Call list_categories() first to avoid duplicates.
 
     Args:
         name: Category name
@@ -230,7 +238,7 @@ async def create_category(name: str, category_set_id: int = 0) -> dict:
 
 @mcp.tool()
 async def list_tags() -> dict:
-    """List all tags used by this user."""
+    """List all tags. Use before tagging bookmarks to see existing tags and avoid duplicates."""
     return await _api("GET", "/api/v1/agent/tags")
 
 
@@ -238,13 +246,15 @@ async def list_tags() -> dict:
 
 @mcp.tool()
 async def list_category_sets() -> dict:
-    """List all category sets. Rarely needed."""
+    """List all category sets. Use when the user asks about their organizational
+    structure or needs to create a category in a specific set."""
     return await _api("GET", "/api/v1/agent/category-sets")
 
 
 @mcp.tool()
 async def create_category_set(name: str) -> dict:
-    """Create a new category set (a container of categories).
+    """Create a new category set (a container of categories). Use when the user
+    says "create a new workspace/set for...".
 
     Args:
         name: Category set name
@@ -258,10 +268,16 @@ async def create_category_set(name: str) -> dict:
 async def create_shared_category(
     name: str, mode: str = "cocreate", description: str = "",
 ) -> dict:
-    """Create a shared category. "cocreate" = multiple editors, "subscribe" = read-only.
+    """Create a shared category for team collaboration. Use when the user says
+    "create a shared collection" or "let's share a folder with my team".
 
     ⚠️ In subscribe mode, NO ONE (including the creator) can add bookmarks —
-    add_to_shared_category returns 403. Use mode="cocreate" if collaboration is needed.
+    add_to_shared_category returns 403. Use mode="cocreate" for editable collaboration.
+
+    Args:
+        name: Category name (required)
+        mode: "cocreate" (multiple editors) or "subscribe" (read-only). Default: "cocreate"
+        description: Optional description for the shared category
     """
     body = {"name": name, "mode": mode}
     if description:
@@ -271,7 +287,8 @@ async def create_shared_category(
 
 @mcp.tool()
 async def join_shared_category(invite_code: str) -> dict:
-    """Join a shared category by invite code.
+    """Join a shared category by invite code. Use when the user says
+    "I have an invite code" or "join this shared collection".
 
     Args:
         invite_code: 8-character invite code
@@ -281,11 +298,12 @@ async def join_shared_category(invite_code: str) -> dict:
 
 @mcp.tool()
 async def create_invite_link(shared_category_id: int, duration_hours: int = 24) -> dict:
-    """Generate an invite link to share with others.
+    """Generate an invite link for others to join. Use when the user says
+    "send the invite link to my team" or "invite someone to this shared category".
 
     Args:
         shared_category_id: Shared category ID (from list_categories — pick ones where mode is not null)
-        duration_hours: Link validity in hours
+        duration_hours: Link validity in hours (default: 24)
     """
     return await _api("POST", f"/api/v1/agent/shared-categories/{shared_category_id}/invite-link",
                       json={"duration_hours": duration_hours})
@@ -293,11 +311,14 @@ async def create_invite_link(shared_category_id: int, duration_hours: int = 24) 
 
 @mcp.tool()
 async def add_to_shared_category(shared_category_id: int, footprint_id: int) -> dict:
-    """Add one of your existing bookmarks to a shared category. The bookmark must be yours.
+    """Add one of your existing bookmarks to a shared category. Use when the user
+    says "add this to the team collection" or wants to contribute to a shared folder.
+
+    The bookmark must belong to you. Does NOT work with subscribe-mode categories (returns 403).
 
     Args:
         shared_category_id: Shared category ID
-        footprint_id: Bookmark ID
+        footprint_id: Bookmark ID to add
     """
     return await _api("POST", f"/api/v1/agent/shared-categories/{shared_category_id}/collections",
                       json={"collection_id": footprint_id})
@@ -305,11 +326,12 @@ async def add_to_shared_category(shared_category_id: int, footprint_id: int) -> 
 
 @mcp.tool()
 async def remove_from_shared_category(shared_category_id: int, footprint_id: int) -> dict:
-    """Remove a bookmark from a shared category (does not delete the bookmark itself).
+    """Remove a bookmark from a shared category. Use when the user says
+    "take this out of the shared collection". Does not delete the bookmark itself.
 
     Args:
         shared_category_id: Shared category ID
-        footprint_id: Bookmark ID
+        footprint_id: Bookmark ID to remove
     """
     return await _api("DELETE",
                       f"/api/v1/agent/shared-categories/{shared_category_id}/collections/{footprint_id}")
@@ -317,11 +339,13 @@ async def remove_from_shared_category(shared_category_id: int, footprint_id: int
 
 @mcp.tool()
 async def copy_footprint(footprint_id: int, category_ids: str) -> dict:
-    """Copy a bookmark from a shared category into your own personal category.
+    """Copy a bookmark from a shared category into your personal collection.
+    Use when the user says "save this shared bookmark to my own collection"
+    or "add that to my personal list".
 
     Args:
         footprint_id: Bookmark ID to copy
-        category_ids: Target category IDs, comma-separated, e.g. "1,3"
+        category_ids: Target personal category IDs, comma-separated, e.g. "1,3"
     """
     cids = [int(x.strip()) for x in category_ids.split(",") if x.strip()]
     return await _api("POST", f"/api/v1/agent/collections/{footprint_id}/copy",
@@ -332,11 +356,15 @@ async def copy_footprint(footprint_id: int, category_ids: str) -> dict:
 
 @mcp.tool()
 async def batch_update_footprints(updates: str) -> dict:
-    """Batch update bookmarks — max 50 at a time. For bulk reorganization.
+    """Batch update up to 50 bookmarks at once. Use when the user says
+    "reorganize all my bookmarks" or for bulk categorization / renaming.
+
+    ⚠️ updates must be a valid JSON array. Malformed JSON or > 50 items returns an error.
+    category_ids still REPLACES (not appends) — verify existing categories with get_footprint() first.
 
     Args:
         updates: JSON string, format '[{"id":"uuid","title":"New Title","category_ids":"1,3"}, ...]'
-                 Each object may contain title/description/category_ids/tag_names; "id" is required
+                 Each object requires "id". Optional: title, description, category_ids, tag_names
     """
     try:
         items = json.loads(updates)
@@ -356,11 +384,13 @@ async def batch_update_footprints(updates: str) -> dict:
 
 @mcp.tool()
 async def agent_magic_link() -> dict:
-    """Generate a magic link to send to the user. This is the Agent-first delivery loop core.
+    """Generate a delivery link to the user. Use after organizing bookmarks —
+    this is the Agent-first delivery loop core.
 
-    After the Agent organizes the user's bookmarks, call this to generate a link.
-    Send it to the user: "Done organizing — view here → [link]"
-    User clicks to see a card-based interface. Link valid for 30 days, reusable.
+    Call this as the final step, then send the link to the user:
+    "Done organizing — view here → [link]"
+    User opens it to see a card-based interface with all organized bookmarks.
+    Link valid for 30 days, reusable.
     """
     return await _api("POST", "/api/v1/agent/magic-link")
 
