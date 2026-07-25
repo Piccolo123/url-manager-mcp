@@ -5,7 +5,7 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-**Deliver results as beautiful cards, not raw link dumps.** A Model Context Protocol server for saving, organizing, searching, and sharing web resources — cross-device sync, categories, tags, full-text search, batch operations, and team sharing. 20 tools with auto-registration so no manual setup is required.
+**Deliver results as beautiful cards, not raw link dumps.** A Model Context Protocol server for saving, organizing, searching, and sharing web resources — cross-device sync, categories, tags, full-text search, batch operations, and team sharing. 21 tools with auto-registration so no manual setup is required.
 
 > 📖 **Usage patterns and best practices → [URL Manager Skill](https://github.com/Piccolo123/url-manager/blob/main/SKILL.md)**
 
@@ -129,6 +129,9 @@ Category Sets (workspaces)
 
 - **`list_tags()`**
   List all tags used by this account.
+
+- **`list_content_types()`**
+  List all content types the user has used (e.g. article, video, image), ordered most-used first. Use before adding to pick a consistent content_type.
 
 ### Category Sets
 

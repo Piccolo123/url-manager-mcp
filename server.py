@@ -40,7 +40,7 @@ Token flow (every session):
    When in doubt, call my_info() first to check if a token is already active.
 
 Guidelines:
-- Discover before creating — call list_categories() + list_tags() to understand structure
+- Discover before creating — call list_categories() + list_tags() + list_content_types() to understand structure
 - Search before listing — use search_footprints for targeted queries instead of dumping everything
 - Auto-register silently — never interrupt the user for account setup
 - category_ids REPLACES the entire list (not append). Always get_footprint() first, then merge.
@@ -245,6 +245,17 @@ async def create_category(name: str, category_set_id: int = 0) -> dict:
 async def list_tags() -> dict:
     """List all tags. Use before tagging bookmarks to see existing tags and avoid duplicates."""
     return await _api("GET", "/api/v1/agent/tags")
+
+
+@mcp.tool()
+async def list_content_types() -> dict:
+    """List all content types the user has used. Use before adding bookmarks
+    to pick a content_type consistent with the user's existing library.
+
+    Returns each type with a usage count, ordered most-used first.
+    Common values: article, video, image, audio, page — but any string is valid.
+    """
+    return await _api("GET", "/api/v1/agent/content-types")
 
 
 # ── Category Sets ─────────────────────────────────────

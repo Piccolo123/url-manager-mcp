@@ -5,7 +5,7 @@
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
 
-**交付精美卡片，而非原始链接堆砌。** 一个 Model Context Protocol 服务器，用于保存、整理、搜索和共享网页资源——跨设备同步、分类、标签、全文搜索、批量操作和团队共享。提供 20 个工具，支持自动注册，无需手动配置。
+**交付精美卡片，而非原始链接堆砌。** 一个 Model Context Protocol 服务器，用于保存、整理、搜索和共享网页资源——跨设备同步、分类、标签、全文搜索、批量操作和团队共享。提供 21 个工具，支持自动注册，无需手动配置。
 
 > 📖 **使用模式和最佳实践 → [URL Manager Skill](https://github.com/Piccolo123/url-manager/blob/main/SKILL.md)**
 
@@ -130,6 +130,9 @@
 
 - **`list_tags()`**
   列出当前账号所有标签。
+
+- **`list_content_types()`**
+  列出用户使用过的所有内容类型（如 article、video、image），按使用次数降序排列。添加前使用以保持类型一致性。
 
 ### 分类集
 
