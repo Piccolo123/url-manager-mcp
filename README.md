@@ -27,7 +27,7 @@ A structured, searchable record — a web link, a plain-text note, an idea, or a
 | `url` | string (8192) | Original link. **Can be empty** for text-only footprints |
 | `title` | string (512) | Short title |
 | `description` | string (1024) | Additional context or notes |
-| `content_type` | string (50) | `article` / `video` / `image` / `audio` / `page` |
+| `content_type` | string (50) | Free text (e.g. `article`, `video`, `image`). Use `list_content_types()` to see existing values |
 | `category_ids` | list[int] | Which categories this belongs to — **you assign** |
 | `tag_names` | list[str] | Free-form keywords — **you assign** |
 

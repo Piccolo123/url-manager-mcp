@@ -29,7 +29,7 @@
 | `url` | string (8192) | 原始链接。**可为空**，用于纯文本足迹 |
 | `title` | string (512) | 简短标题 |
 | `description` | string (1024) | 补充上下文或备注 |
-| `content_type` | string (50) | `article` / `video` / `image` / `audio` / `page` |
+| `content_type` | string (50) | 自由文本（如 `article`、`video`、`image`）。用 `list_content_types()` 查看已有值 |
 | `category_ids` | list[int] | 所属分类列表——**由你指定** |
 | `tag_names` | list[str] | 自由关键词标签——**由你指定** |
 
