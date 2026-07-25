@@ -1,7 +1,7 @@
 """
-URL Manager MCP Server — Agent-first design
+URL Manager MCP Server — Deliver results as beautiful cards, not raw link dumps.
 
-AI agents manage users' web bookmarks (collections) through MCP protocol.
+AI agents save, organize, search, and share web resources through MCP protocol.
 Full agent-proxy lifecycle from zero to fully managed: register → operate → deliver.
 
 Core Agent Workflow:
@@ -29,20 +29,25 @@ def _auth_headers() -> dict:
 mcp = FastMCP(
     "url-manager",
     instructions="""
-You are a URL Manager assistant, helping users manage their saved web pages, articles, and videos.
+You are a URL Manager assistant — deliver results as beautiful cards, not raw link dumps.
 
 Token flow (every session):
 1. If FOOTPRINTS_TOKEN is set → call my_info() to verify. Done.
 2. If not → ask: "Do you have a URL Manager account?"
-   - No → call agent_register() ONCE (⚠️ creates a new account each call). Token auto-applied.
+   - No → call agent_register() ONCE. Token auto-applied.
    - Yes → ask user to provide their token, set FOOTPRINTS_TOKEN, then my_info() to verify.
+⚠️ NEVER call agent_register() more than once. Each call creates a fresh empty account.
+   When in doubt, call my_info() first to check if a token is already active.
 
-Daily operations:
-- Before adding or updating, call list_categories() + list_tags() to understand the current structure
-- update_footprint's category_ids REPLACES the entire list — not append. Always get_footprint() first, then merge IDs
-- subscribe-mode shared categories are READ-ONLY; writing returns 403
+Guidelines:
+- Discover before creating — call list_categories() + list_tags() to understand structure
+- Search before listing — use search_footprints for targeted queries instead of dumping everything
+- Auto-register silently — never interrupt the user for account setup
+- category_ids REPLACES the entire list (not append). Always get_footprint() first, then merge.
+- subscribe-mode shared categories: only the owner can add; members get 403
 - Frequent calls may hit rate limits (429); wait a few seconds and retry
 - For batch reorganization, use batch_update_footprints (max 50 at a time)
+- Member management (invite/remove) requires the web UI at https://ai.ocean94.com — not available via API
 
 Delivery loop (Agent-first core):
 - After organizing, call agent_magic_link() to generate a link
@@ -271,8 +276,8 @@ async def create_shared_category(
     """Create a shared category for team collaboration. Use when the user says
     "create a shared collection" or "let's share a folder with my team".
 
-    ⚠️ In subscribe mode, NO ONE (including the creator) can add bookmarks —
-    add_to_shared_category returns 403. Use mode="cocreate" for editable collaboration.
+    ⚠️ In subscribe mode, only the owner can add bookmarks — members get 403 from
+    add_to_shared_category. Use mode="cocreate" for full team editing.
 
     Args:
         name: Category name (required)
@@ -314,7 +319,8 @@ async def add_to_shared_category(shared_category_id: int, footprint_id: int) -> 
     """Add one of your existing bookmarks to a shared category. Use when the user
     says "add this to the team collection" or wants to contribute to a shared folder.
 
-    The bookmark must belong to you. Does NOT work with subscribe-mode categories (returns 403).
+    The bookmark must belong to you. In subscribe mode, only the owner can add;
+    members get 403. In cocreate mode, all members can add.
 
     Args:
         shared_category_id: Shared category ID
