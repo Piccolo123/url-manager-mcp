@@ -1,6 +1,6 @@
 [project]
 name = "url-manager-mcp"
-version = "1.0.1"
+version = "1.0.2"
 description = "URL Manager MCP Server — Agent-first web link collection & knowledge management"
 readme = "README.md"
 license = {text = "MIT"}
