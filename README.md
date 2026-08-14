@@ -269,10 +269,35 @@ cd url-manager-mcp
 pip install -r requirements.txt
 ```
 
+Or from PyPI:
+
+```bash
+uvx url-manager-mcp   # or: pip install url-manager-mcp
+```
+
 ### Prerequisites
 
 - Python 3.10+
 - Network access to `https://ai.ocean94.com`
+
+## DeepSeek Harness (dsh)
+
+Add to your profile's `cordis.patch.yml` (e.g. `~/.dsh/profiles/headless/cordis.patch.yml` or the `web` profile):
+
+```yaml
+- insert:
+    - id: mcp-url-manager
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: url_manager
+        transport: stdio
+        command: uvx
+        args: ['url-manager-mcp']
+        env:
+          FOOTPRINTS_ENDPOINT: 'https://ai.ocean94.com'
+```
+
+All 21 tools appear as `mcp__url_manager__*` (add_footprint, search_footprints, list_categories, agent_magic_link, …). The model auto-registers on first use — no API key needed. The companion skill (`Piccolo123/url-manager`) is also auto-discovered by dsh when cloned into `~/.dsh/skills/`.
 
 ## Configuration
 
