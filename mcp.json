@@ -1,0 +1,18 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/mcp.json",
+  "name": "url-manager-mcp",
+  "description": "Agent-first web link collection & knowledge management. AI agents auto-register, collect, categorize, tag, search, and share bookmarks across devices. 21 MCP tools with full CRUD, batch operations, shared collections, and magic-link delivery.",
+  "repository": "https://github.com/Piccolo123/url-manager-mcp",
+  "license": "MIT",
+  "runtime": "python",
+  "tags": ["bookmarks", "url-manager", "knowledge-management", "mcp", "agent-first", "shared-collections"],
+  "mcpServers": {
+    "url-manager": {
+      "command": "uvx",
+      "args": ["url-manager-mcp"],
+      "env": {
+        "FOOTPRINTS_ENDPOINT": "https://ai.ocean94.com"
+      }
+    }
+  }
+}
