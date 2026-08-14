@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.Piccolo123/url-manager-mcp -->
+
 # URL Manager MCP Server
 
 [![url-manager-mcp MCP server](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp/badges/score.svg)](https://glama.ai/mcp/servers/Piccolo123/url-manager-mcp)
